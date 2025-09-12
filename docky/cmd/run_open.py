@@ -84,27 +84,9 @@ class DockyRun(DockyExec):
 class DockyOpen(DockyExec):
     """Open a new session inside your dev container"""
 
-    # Patch compose service to be make it working with docker-compose run
-
     def _main(self, *optionnal_command_line):
         super()._main(*optionnal_command_line)
-
-        # Get Project Name
-        # Example:     docky-odoo-brasil-14      odoo
-        project_name = self.project.name + "-" + self.project.service
-
-        # Get User
-        user = self._use_specific_user(self.service)
-
-        # Get Container ID
-        command = "docker ps -aqf name=" + project_name
-        # Example of return value
-        # b'b5db9db21381\n'
-        # Option text=true return as string instead of bytes and strip remove break line
-        # TODO: Is there a better way to do it, for example with Plumbum?
-        container_id = subprocess.check_output(command, shell=True,text=True).strip()
-
-        self._exec("docker", ["exec", "-u", user, "-it", container_id, "/bin/bash"])
+        self._exec("docker", ["compose", "exec", "-e", "NOGOSU=True", self.service] + self.cmd)
 
 @Docky.subcommand("system")
 class DockySystem(DockyExec):
