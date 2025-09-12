@@ -12,11 +12,7 @@ from python_on_whales import docker
 
 
 class DockyExec(DockySub):
-
-    root = cli.Flag(
-        ["root"],
-        help="Run or open as root",
-        group="Meta-switches")
+    root = cli.Flag(["root"], help="Run or open as root", group="Meta-switches")
     service = cli.SwitchAttr(["service"])
 
     def _use_specific_user(self, service):
@@ -41,8 +37,12 @@ class DockyExec(DockySub):
                 "Fail to define the service to start\n"
                 "No service '--service=foo' have been pass\n"
                 "And there is no label: docky.main.service: True "
-                "in your docker-compose file.")
+                "in your docker-compose file."
+            )
         self.cmd = self._get_cmd_line(optionnal_command_line)
+
+
+DOCKER_DOWN_STATUS = ["created", "exited"]
 
 
 @Docky.subcommand("run")
@@ -51,14 +51,16 @@ class DockyRun(DockyExec):
 
     def _check_running(self):
         for service in docker.compose.ps(services=[self.service], all=True):
-            if service.state.status == "exited":
+            if service.state.status in DOCKER_DOWN_STATUS:
                 # In case that you have used "docker compose run" without the
                 # option "--rm" you can have exited container
                 # we purge them here as they are useless
                 service.remove()
             else:
-                raise_error("This container is already running, kill it or "
-                            "use open to go inside")
+                raise_error(
+                    "This container is already running, kill it or "
+                    "use open to go inside"
+                )
 
     def _main(self, *optionnal_command_line):
         super()._main(*optionnal_command_line)
@@ -68,7 +70,15 @@ class DockyRun(DockyExec):
         self.project.display_service_tooltip()
         self.project.create_volume()
         # Default command
-        docky_cmd = ["run", "--rm", "--service-ports", "--use-aliases", "-e", "NOGOSU=True", self.service] + self.cmd
+        docky_cmd = [
+            "run",
+            "--rm",
+            "--service-ports",
+            "--use-aliases",
+            "-e",
+            "NOGOSU=True",
+            self.service,
+        ] + self.cmd
 
         self._exec("docker", ["compose"] + docky_cmd)
 
@@ -88,12 +98,14 @@ class DockyOpen(DockyExec):
         super()._main(*optionnal_command_line)
         self._exec("docker", ["compose", "exec", "-e", "NOGOSU=True", self.service] + self.cmd)
 
+
 @Docky.subcommand("system")
 class DockySystem(DockyExec):
     """
     Check your System Infos:
     OS Type, Kernel, OS, Docker, Docker Compose, and Docky versions.
     """
+
     def _main(self):
         # Info
         infos = docker.system.info()
