@@ -9,6 +9,7 @@ from .base import Docky, DockySub
 from ..common.api import raise_error, logger
 
 from python_on_whales import docker
+from python_on_whales.exceptions import NoSuchContainer
 
 
 class DockyExec(DockySub):
@@ -50,7 +51,13 @@ class DockyRun(DockyExec):
     """Start services and enter in your dev container"""
 
     def _check_running(self):
-        for service in docker.compose.ps(services=[self.service], all=True):
+        try:
+            services = docker.compose.ps(services=[self.service], all=True)
+        except NoSuchContainer:
+            # In case there is no container at all yet
+            services = []
+
+        for service in services:
             if service.state.status in DOCKER_DOWN_STATUS:
                 # In case that you have used "docker compose run" without the
                 # option "--rm" you can have exited container
@@ -96,7 +103,9 @@ class DockyOpen(DockyExec):
 
     def _main(self, *optionnal_command_line):
         super()._main(*optionnal_command_line)
-        self._exec("docker", ["compose", "exec", "-e", "NOGOSU=True", self.service] + self.cmd)
+        self._exec(
+            "docker", ["compose", "exec", "-e", "NOGOSU=True", self.service] + self.cmd
+        )
 
 
 @Docky.subcommand("system")
